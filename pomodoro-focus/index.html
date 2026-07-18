@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pomodoro Focus — Minuteur & Tâches</title>
+<style>
+  :root{
+    --bg:#0f1117; --surface:#181b24; --surface-2:#20242f;
+    --text:#e8eaf0; --muted:#8b90a0; --line:#2a2f3d;
+    --accent:#ff6b5e; --accent-2:#5eead4; --accent-3:#a78bfa;
+    --ring-track:#262b38;
+    --shadow:0 10px 40px rgba(0,0,0,.35);
+    --radius:18px;
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#f4f5f9; --surface:#ffffff; --surface-2:#f0f2f7;
+      --text:#1c2030; --muted:#697086; --line:#e4e7ef;
+      --ring-track:#e7eaf1; --shadow:0 10px 40px rgba(20,30,60,.10);
+    }
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--text);min-height:100vh;
+    display:flex;align-items:center;justify-content:center;padding:24px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{
+    width:100%;max-width:920px;display:grid;
+    grid-template-columns:1.1fr .9fr;gap:20px;
+  }
+  @media (max-width:760px){ .app{grid-template-columns:1fr} }
+
+  .card{background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--radius);box-shadow:var(--shadow);padding:28px}
+
+  header{grid-column:1/-1;display:flex;align-items:center;gap:12px;
+    padding:2px 4px 6px}
+  header .logo{font-size:26px}
+  header h1{font-size:20px;font-weight:700;letter-spacing:-.3px}
+  header p{color:var(--muted);font-size:13px;margin-left:auto}
+
+  /* Timer */
+  .timer{display:flex;flex-direction:column;align-items:center;text-align:center}
+  .modes{display:flex;gap:6px;background:var(--surface-2);padding:5px;
+    border-radius:999px;margin-bottom:26px}
+  .modes button{border:0;background:transparent;color:var(--muted);
+    font-size:13px;font-weight:600;padding:8px 16px;border-radius:999px;
+    cursor:pointer;transition:.2s}
+  .modes button.active{background:var(--surface);color:var(--text);
+    box-shadow:0 2px 8px rgba(0,0,0,.12)}
+
+  .ring-wrap{position:relative;width:260px;height:260px;margin-bottom:8px}
+  svg.ring{transform:rotate(-90deg)}
+  .ring-track{fill:none;stroke:var(--ring-track);stroke-width:14}
+  .ring-prog{fill:none;stroke:var(--accent);stroke-width:14;
+    stroke-linecap:round;transition:stroke-dashoffset .3s linear}
+  .time{position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center}
+  .time .digits{font-size:56px;font-weight:800;font-variant-numeric:tabular-nums;
+    letter-spacing:-1px}
+  .time .label{color:var(--muted);font-size:13px;margin-top:2px;
+    text-transform:uppercase;letter-spacing:1.5px}
+
+  .controls{display:flex;gap:12px;margin-top:22px}
+  .btn{border:0;cursor:pointer;font-weight:700;font-size:15px;
+    padding:14px 30px;border-radius:12px;transition:.15s;font-family:inherit}
+  .btn:active{transform:translateY(1px)}
+  .btn-primary{background:var(--accent);color:#fff;
+    box-shadow:0 6px 18px rgba(255,107,94,.35)}
+  .btn-ghost{background:var(--surface-2);color:var(--text)}
+
+  /* Right column */
+  .stat-row{display:flex;gap:12px;margin-bottom:22px}
+  .stat{flex:1;background:var(--surface-2);border-radius:14px;padding:16px;text-align:center}
+  .stat b{display:block;font-size:26px;font-weight:800}
+  .stat span{color:var(--muted);font-size:12px}
+
+  .tasks h2{font-size:14px;text-transform:uppercase;letter-spacing:1px;
+    color:var(--muted);margin-bottom:14px}
+  .add{display:flex;gap:8px;margin-bottom:16px}
+  .add input{flex:1;background:var(--surface-2);border:1px solid var(--line);
+    color:var(--text);padding:11px 14px;border-radius:10px;font-size:14px;font-family:inherit}
+  .add input:focus{outline:2px solid var(--accent);outline-offset:0}
+  .add button{border:0;background:var(--accent-3);color:#fff;width:44px;
+    border-radius:10px;font-size:20px;cursor:pointer;font-weight:700}
+
+  ul{list-style:none;display:flex;flex-direction:column;gap:8px;
+    max-height:230px;overflow-y:auto}
+  li{display:flex;align-items:center;gap:12px;background:var(--surface-2);
+    padding:11px 14px;border-radius:10px;font-size:14px}
+  li.done .txt{text-decoration:line-through;color:var(--muted)}
+  li .check{width:20px;height:20px;border-radius:6px;border:2px solid var(--line);
+    cursor:pointer;flex-shrink:0;display:grid;place-items:center;transition:.15s}
+  li.done .check{background:var(--accent-2);border-color:var(--accent-2)}
+  li .check svg{opacity:0}
+  li.done .check svg{opacity:1}
+  li .txt{flex:1;word-break:break-word}
+  li .del{background:0;border:0;color:var(--muted);cursor:pointer;font-size:18px;
+    opacity:.5;transition:.15s}
+  li .del:hover{opacity:1;color:var(--accent)}
+  .empty{color:var(--muted);font-size:13px;text-align:center;padding:20px 0}
+
+  footer{grid-column:1/-1;text-align:center;color:var(--muted);
+    font-size:12px;padding-top:4px}
+  kbd{background:var(--surface-2);border:1px solid var(--line);border-radius:5px;
+    padding:1px 6px;font-size:11px;font-family:inherit}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <span class="logo">🍅</span>
+    <h1>Pomodoro Focus</h1>
+    <p>Travaille concentré, 25 min à la fois</p>
+  </header>
+
+  <!-- TIMER -->
+  <section class="card timer">
+    <div class="modes" id="modes">
+      <button data-mode="focus" class="active">Focus</button>
+      <button data-mode="short">Pause courte</button>
+      <button data-mode="long">Pause longue</button>
+    </div>
+
+    <div class="ring-wrap">
+      <svg class="ring" width="260" height="260" viewBox="0 0 260 260">
+        <circle class="ring-track" cx="130" cy="130" r="116"/>
+        <circle class="ring-prog" id="ring" cx="130" cy="130" r="116"/>
+      </svg>
+      <div class="time">
+        <div class="digits" id="digits">25:00</div>
+        <div class="label" id="modeLabel">Focus</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-primary" id="startBtn">Démarrer</button>
+      <button class="btn btn-ghost" id="resetBtn">Réinitialiser</button>
+    </div>
+  </section>
+
+  <!-- TASKS + STATS -->
+  <section class="card">
+    <div class="stat-row">
+      <div class="stat"><b id="cyclesToday">0</b><span>cycles aujourd'hui</span></div>
+      <div class="stat"><b id="focusMin">0</b><span>min de focus</span></div>
+    </div>
+
+    <div class="tasks">
+      <h2>Tâches du jour</h2>
+      <form class="add" id="addForm">
+        <input id="taskInput" placeholder="Ajouter une tâche…" maxlength="120" autocomplete="off">
+        <button type="submit" aria-label="Ajouter">+</button>
+      </form>
+      <ul id="taskList"></ul>
+    </div>
+  </section>
+
+  <footer>
+    <kbd>Espace</kbd> démarrer/pause &nbsp;·&nbsp; <kbd>R</kbd> réinitialiser &nbsp;·&nbsp;
+    Données sauvegardées sur cet appareil
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const DURATIONS = { focus:25*60, short:5*60, long:15*60 };
+  const LABELS    = { focus:"Focus", short:"Pause", long:"Pause longue" };
+
+  const R = 116, CIRC = 2*Math.PI*R;
+  const ring = document.getElementById('ring');
+  ring.style.strokeDasharray = CIRC;
+
+  // ---- State ----
+  let mode = 'focus';
+  let remaining = DURATIONS[mode];
+  let running = false;
+  let ticker = null;
+  let endAt = 0;
+
+  const todayKey = 'pf_stats_' + new Date().toISOString().slice(0,10);
+  let stats = load(todayKey, { cycles:0, focusMin:0 });
+  let tasks = load('pf_tasks', []);
+
+  // ---- Elements ----
+  const digits = document.getElementById('digits');
+  const modeLabel = document.getElementById('modeLabel');
+  const startBtn = document.getElementById('startBtn');
+  const list = document.getElementById('taskList');
+
+  // ---- Rendering ----
+  function fmt(s){
+    const m = Math.floor(s/60), r = s%60;
+    return String(m).padStart(2,'0')+':'+String(r).padStart(2,'0');
+  }
+  function paint(){
+    digits.textContent = fmt(remaining);
+    modeLabel.textContent = LABELS[mode];
+    const frac = 1 - remaining / DURATIONS[mode];
+    ring.style.strokeDashoffset = CIRC * frac;
+    ring.style.stroke = mode==='focus' ? 'var(--accent)' : 'var(--accent-2)';
+    startBtn.textContent = running ? 'Pause' : 'Démarrer';
+    document.title = (running ? fmt(remaining)+' · ' : '') + 'Pomodoro Focus';
+    document.getElementById('cyclesToday').textContent = stats.cycles;
+    document.getElementById('focusMin').textContent = stats.focusMin;
+  }
+
+  // ---- Timer engine (drift-free, uses timestamps) ----
+  function start(){
+    if(running) return;
+    running = true;
+    endAt = Date.now() + remaining*1000;
+    ticker = setInterval(tick, 250);
+    paint();
+  }
+  function pause(){
+    running = false;
+    clearInterval(ticker);
+    paint();
+  }
+  function tick(){
+    remaining = Math.max(0, Math.round((endAt - Date.now())/1000));
+    if(remaining <= 0){ complete(); }
+    paint();
+  }
+  function complete(){
+    clearInterval(ticker);
+    running = false;
+    if(mode === 'focus'){
+      stats.cycles++;
+      stats.focusMin += DURATIONS.focus/60;
+      save(todayKey, stats);
+      // Auto-suggest a break every 4th cycle
+      switchMode(stats.cycles % 4 === 0 ? 'long' : 'short');
+    } else {
+      switchMode('focus');
+    }
+    beep(mode === 'focus' ? 'up' : 'down');
+    notify();
+  }
+  function reset(){
+    pause();
+    remaining = DURATIONS[mode];
+    paint();
+  }
+  function switchMode(m){
+    mode = m;
+    remaining = DURATIONS[m];
+    running = false;
+    clearInterval(ticker);
+    document.querySelectorAll('#modes button').forEach(b=>
+      b.classList.toggle('active', b.dataset.mode===m));
+    paint();
+  }
+
+  // ---- Sound (Web Audio, no files) ----
+  let actx;
+  function beep(dir){
+    try{
+      actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+      const notes = dir==='up' ? [523,659,784] : [784,523];
+      notes.forEach((f,i)=>{
+        const o = actx.createOscillator(), g = actx.createGain();
+        o.type='sine'; o.frequency.value=f;
+        o.connect(g); g.connect(actx.destination);
+        const t = actx.currentTime + i*0.18;
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.25, t+0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, t+0.35);
+        o.start(t); o.stop(t+0.36);
+      });
+    }catch(e){/* audio unavailable */}
+  }
+  function notify(){
+    if(!('Notification' in window)) return;
+    if(Notification.permission === 'granted'){
+      new Notification('Pomodoro Focus', {
+        body: mode==='focus' ? 'Pause terminée — au travail 💪' : 'Cycle terminé — fais une pause ☕',
+      });
+    }
+  }
+
+  // ---- Tasks ----
+  function renderTasks(){
+    list.innerHTML = '';
+    if(!tasks.length){
+      list.innerHTML = '<div class="empty">Aucune tâche. Ajoute ta première ci-dessus 👆</div>';
+      return;
+    }
+    tasks.forEach((t, i)=>{
+      const li = document.createElement('li');
+      if(t.done) li.className = 'done';
+      li.innerHTML = `
+        <span class="check" data-i="${i}">
+          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="#0f1117" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        <span class="txt"></span>
+        <button class="del" data-del="${i}" aria-label="Supprimer">×</button>`;
+      li.querySelector('.txt').textContent = t.text;
+      list.appendChild(li);
+    });
+  }
+  list.addEventListener('click', e=>{
+    const chk = e.target.closest('.check');
+    const del = e.target.closest('.del');
+    if(chk){ const i=+chk.dataset.i; tasks[i].done=!tasks[i].done; save('pf_tasks',tasks); renderTasks(); }
+    if(del){ tasks.splice(+del.dataset.del,1); save('pf_tasks',tasks); renderTasks(); }
+  });
+  document.getElementById('addForm').addEventListener('submit', e=>{
+    e.preventDefault();
+    const inp = document.getElementById('taskInput');
+    const v = inp.value.trim();
+    if(!v) return;
+    tasks.push({text:v, done:false});
+    save('pf_tasks', tasks);
+    inp.value=''; renderTasks();
+  });
+
+  // ---- Controls ----
+  startBtn.onclick = ()=>{
+    if(actx && actx.state==='suspended') actx.resume();
+    if('Notification' in window && Notification.permission==='default') Notification.requestPermission();
+    running ? pause() : start();
+  };
+  document.getElementById('resetBtn').onclick = reset;
+  document.getElementById('modes').addEventListener('click', e=>{
+    const b = e.target.closest('button');
+    if(b) switchMode(b.dataset.mode);
+  });
+  document.addEventListener('keydown', e=>{
+    if(e.target.tagName==='INPUT') return;
+    if(e.code==='Space'){ e.preventDefault(); startBtn.onclick(); }
+    if(e.key.toLowerCase()==='r'){ reset(); }
+  });
+
+  // ---- Persistence helpers ----
+  function load(k, def){ try{ return JSON.parse(localStorage.getItem(k)) ?? def; }catch(e){ return def; } }
+  function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+
+  // ---- Init ----
+  renderTasks();
+  paint();
+})();
+</script>
+</body>
+</html>

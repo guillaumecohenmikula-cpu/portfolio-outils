@@ -1,10 +1,15 @@
 # Environment
 .env
 .env.local
+
+# Python
 *.pyc
 __pycache__/
 .venv/
 venv/
+dist/
+build/
+*.egg-info/
 
 # IDE
 .vscode/
@@ -18,8 +23,3 @@ venv/
 # Node (si besoin plus tard)
 node_modules/
 package-lock.json
-
-# Python
-dist/
-build/
-*.egg-info/
