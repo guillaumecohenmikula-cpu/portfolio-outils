@@ -1,0 +1,25 @@
+# Environment
+.env
+.env.local
+*.pyc
+__pycache__/
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Node (si besoin plus tard)
+node_modules/
+package-lock.json
+
+# Python
+dist/
+build/
+*.egg-info/
